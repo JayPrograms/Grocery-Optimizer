@@ -148,6 +148,7 @@ The estimate compares a dedicated round trip to each single store. It is not a b
 The detailed ownership and payload boundaries are defined in `ARCHITECTURE.md`.
 
 - `POST /internal/v1/deal-batches` — ingest a complete source batch.
+- `GET /v1/deals` and `GET /v1/deals/{deal_id}` — query the current active-deal projection.
 - `POST /v1/optimizations` — synchronously calculate store rankings from the current projection.
 - `GET /health/live` — process liveness.
 - `GET /health/ready` — dependency readiness.

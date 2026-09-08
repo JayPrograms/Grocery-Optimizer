@@ -366,6 +366,18 @@ deals: RawDealInput[1..500]
 
 ### 7.2 Ranking API
 
+#### `GET /v1/deals`
+
+Returns the ranking service's active normalized-deal projection. Optional
+`store_location_id` and `canonical_product_id` filters are applied before bounded
+limit/offset pagination. The service evaluates activity using its current UTC time;
+future and expired offers are never returned.
+
+#### `GET /v1/deals/{deal_id}`
+
+Returns one active projected deal. Unknown, future, and expired deals return `404` so
+the endpoint cannot be used to bypass the active-deal boundary.
+
 #### `POST /v1/optimizations`
 
 Request:
