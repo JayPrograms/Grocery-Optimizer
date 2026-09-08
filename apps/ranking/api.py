@@ -24,7 +24,7 @@ def create_app(repository: DealRepository | None = None) -> FastAPI:
         store_location_id: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
         canonical_product_id: UUID | None = None,
         limit: Annotated[int, Query(ge=1, le=100)] = 50,
-        offset: Annotated[int, Query(ge=0)] = 0,
+        offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
         deal_repository: DealRepository = Depends(_repository),
     ) -> ActiveDealPage:
         """Return only deals active at the server's current UTC time."""

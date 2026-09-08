@@ -13,8 +13,11 @@ py -m venv .venv
 .venv\Scripts\python -m pip install -e ".[test]"
 ```
 
-Apply `infra/migrations/001_ranking_projection.sql` to a PostgreSQL database with
-pgvector available, then set `RANKING_DATABASE_URL`.
+Apply the SQL files in `infra/migrations` in numeric order to a PostgreSQL database
+with pgvector available, then set `RANKING_DATABASE_URL`. The projector also requires
+`RANKING_EMBEDDING_MODEL`, `RANKING_EMBEDDING_VERSION`, and
+`RANKING_EMBEDDING_DIMENSION=1536`. Set a stable, replica-unique
+`RANKING_PROJECTOR_TRANSACTIONAL_ID` when running more than one projector replica.
 
 Run the API and projector separately:
 

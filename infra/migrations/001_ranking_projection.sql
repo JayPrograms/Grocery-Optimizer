@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS ranking.catalog_projection (
     package_unit text,
     category text,
     search_text text NOT NULL,
-    embedding vector NOT NULL,
+    embedding vector(1536) NOT NULL,
     embedding_model text NOT NULL,
     embedding_version text NOT NULL,
     catalog_version integer NOT NULL CHECK (catalog_version >= 1),
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS ranking.catalog_projection (
 );
 
 CREATE TABLE IF NOT EXISTS ranking.deal_projection (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid PRIMARY KEY,
     source text NOT NULL,
     store_location_id text NOT NULL REFERENCES ranking.store_locations(store_location_id),
     source_deal_id text NOT NULL,

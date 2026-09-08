@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from datetime import datetime
-from uuid import UUID, uuid5, NAMESPACE_URL
+from uuid import UUID
 
 from apps.ranking.models import (
     ActiveDeal,
@@ -9,6 +9,7 @@ from apps.ranking.models import (
     ProductView,
     StoreView,
 )
+from apps.ranking.repository import deal_projection_id
 from packages.event_contracts import NormalizedDealEventV1
 
 
@@ -39,7 +40,7 @@ class InMemoryDealRepository:
             current_order = (current_event.payload.source_updated_at, current_event.event_id)
             if incoming_order <= current_order:
                 return True
-        deal_id = uuid5(NAMESPACE_URL, ":".join(key))
+        deal_id = deal_projection_id(*key)
         self.deals[key] = (event, self._to_active_deal(event, deal_id))
         return True
 

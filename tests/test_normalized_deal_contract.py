@@ -12,7 +12,7 @@ def test_normalized_event_parses_documented_schema() -> None:
 
     assert event.payload.source_deal_id == "deal-1"
     assert str(event.payload.offer.deal_price) == "3.49"
-    assert len(event.payload.product.embedding) == 3
+    assert len(event.payload.product.embedding) == 1536
 
 
 def test_normalized_event_rejects_unknown_fields() -> None:

@@ -17,6 +17,7 @@ def normalized_event_dict(
     valid_from: datetime | None = None,
     valid_to: datetime | None = None,
     deal_price: str = "3.49",
+    embedding: list[str] | None = None,
 ) -> dict[str, object]:
     return {
         "event_id": event_id,
@@ -47,7 +48,7 @@ def normalized_event_dict(
                 "package_unit": "l",
                 "category": "dairy",
                 "search_text": "whole milk 1 l",
-                "embedding": ["0.1", "0.2", "0.3"],
+                "embedding": embedding or ["0.1"] * 1536,
             },
             "offer": {
                 "deal_price": deal_price,

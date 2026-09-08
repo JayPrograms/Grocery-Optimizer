@@ -369,8 +369,8 @@ deals: RawDealInput[1..500]
 #### `GET /v1/deals`
 
 Returns the ranking service's active normalized-deal projection. Optional
-`store_location_id` and `canonical_product_id` filters are applied before bounded
-limit/offset pagination. The service evaluates activity using its current UTC time;
+`store_location_id` and `canonical_product_id` filters are applied before pagination;
+limit is capped at 100 and offset at 10,000. The service evaluates activity using its current UTC time;
 future and expired offers are never returned.
 
 #### `GET /v1/deals/{deal_id}`

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import psycopg
 from psycopg.rows import dict_row
@@ -79,6 +79,15 @@ FROM ranking.deal_projection AS d
 JOIN ranking.store_locations AS s ON s.store_location_id = d.store_location_id
 JOIN ranking.catalog_projection AS c ON c.canonical_product_id = d.canonical_product_id
 """
+
+_DEAL_ID_NAMESPACE = UUID("ed702d37-9f4c-5c2e-a137-72822b37763e")
+
+
+def deal_projection_id(source: str, store_location_id: str, source_deal_id: str) -> UUID:
+    identity = "".join(
+        f"{len(value)}:{value}" for value in (source, store_location_id, source_deal_id)
+    )
+    return uuid5(_DEAL_ID_NAMESPACE, identity)
 
 
 def _vector_literal(values: list[Decimal]) -> str:
@@ -256,14 +265,14 @@ class PostgresDealRepository:
                 connection.execute(
                     """
                     INSERT INTO ranking.deal_projection (
-                        source, store_location_id, source_deal_id, canonical_product_id,
+                        id, source, store_location_id, source_deal_id, canonical_product_id,
                         source_updated_at, last_event_id, deal_price, regular_price,
                         currency, package_quantity, package_unit, valid_from, valid_to,
                         normalization_method, normalization_confidence, embedding_model,
                         embedding_version, llm_model, prompt_version, catalog_version
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT (source, store_location_id, source_deal_id) DO UPDATE SET
                         canonical_product_id = EXCLUDED.canonical_product_id,
@@ -289,6 +298,11 @@ class PostgresDealRepository:
                            AND EXCLUDED.last_event_id > ranking.deal_projection.last_event_id)
                     """,
                     (
+                        deal_projection_id(
+                            payload.source,
+                            store.store_location_id,
+                            payload.source_deal_id,
+                        ),
                         payload.source,
                         store.store_location_id,
                         payload.source_deal_id,

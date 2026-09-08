@@ -3,6 +3,7 @@ import json
 import pytest
 
 from apps.ranking.projector import (
+    EmbeddingCompatibility,
     InvalidNormalizedDeal,
     NormalizedDealProjector,
     ProjectionOutcome,
@@ -12,9 +13,15 @@ from tests.conftest import BASE_TIME, normalized_event_dict
 from tests.fakes import InMemoryDealRepository
 
 
+def _projector(repository: InMemoryDealRepository) -> NormalizedDealProjector:
+    return NormalizedDealProjector(
+        repository, EmbeddingCompatibility("fixture-embedding", "1", 1536)
+    )
+
+
 async def test_duplicate_delivery_creates_one_logical_deal(event_bytes: bytes) -> None:
     repository = InMemoryDealRepository()
-    projector = NormalizedDealProjector(repository)
+    projector = _projector(repository)
     metadata = RecordMetadata("grocery.deals.normalized.v1", 0, 12)
 
     first = await projector.consume(event_bytes, metadata)
@@ -28,7 +35,7 @@ async def test_duplicate_delivery_creates_one_logical_deal(event_bytes: bytes) -
 
 async def test_older_source_version_cannot_overwrite_newer_deal() -> None:
     repository = InMemoryDealRepository()
-    projector = NormalizedDealProjector(repository)
+    projector = _projector(repository)
     newer = normalized_event_dict(
         event_id="10000000-0000-0000-0000-000000000009",
         source_updated_at=BASE_TIME,
@@ -50,7 +57,7 @@ async def test_older_source_version_cannot_overwrite_newer_deal() -> None:
 
 async def test_distinct_events_for_one_logical_deal_still_use_one_row() -> None:
     repository = InMemoryDealRepository()
-    projector = NormalizedDealProjector(repository)
+    projector = _projector(repository)
     first = normalized_event_dict(event_id="10000000-0000-0000-0000-000000000001")
     update = normalized_event_dict(
         event_id="10000000-0000-0000-0000-000000000002",
@@ -66,7 +73,35 @@ async def test_distinct_events_for_one_logical_deal_still_use_one_row() -> None:
 
 
 async def test_invalid_event_is_a_terminal_projection_error() -> None:
-    projector = NormalizedDealProjector(InMemoryDealRepository())
+    projector = _projector(InMemoryDealRepository())
 
     with pytest.raises(InvalidNormalizedDeal):
         await projector.consume(b'{"not":"a normalized deal"}', RecordMetadata("topic", 0, 1))
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("embedding_model", "other-model"),
+        ("embedding_version", "other-version"),
+    ],
+)
+async def test_incompatible_embedding_metadata_is_terminal(field: str, value: str) -> None:
+    projector = _projector(InMemoryDealRepository())
+    event = normalized_event_dict()
+    event["payload"]["normalization"][field] = value
+
+    with pytest.raises(InvalidNormalizedDeal, match="incompatible embedding") as raised:
+        await projector.consume(json.dumps(event).encode(), RecordMetadata("topic", 0, 1))
+
+    assert raised.value.error_code == "INCOMPATIBLE_EMBEDDING"
+
+
+async def test_incompatible_embedding_dimension_is_terminal() -> None:
+    projector = _projector(InMemoryDealRepository())
+    event = normalized_event_dict(embedding=["0.1", "0.2"])
+
+    with pytest.raises(InvalidNormalizedDeal) as raised:
+        await projector.consume(json.dumps(event).encode(), RecordMetadata("topic", 0, 1))
+
+    assert raised.value.error_code == "INCOMPATIBLE_EMBEDDING"

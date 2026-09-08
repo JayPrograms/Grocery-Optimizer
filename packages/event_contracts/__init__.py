@@ -1,3 +1,4 @@
+from .dead_letter import DeadLetterEventV1, DeadLetterPayloadV1
 from .normalized_deal import (
     NormalizationAuditV1,
     NormalizationMethod,
@@ -9,6 +10,8 @@ from .normalized_deal import (
 )
 
 __all__ = [
+    "DeadLetterEventV1",
+    "DeadLetterPayloadV1",
     "NormalizationAuditV1",
     "NormalizationMethod",
     "NormalizedDealEventV1",

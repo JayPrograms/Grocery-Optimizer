@@ -4,7 +4,11 @@ import json
 from httpx import ASGITransport, AsyncClient
 
 from apps.ranking.api import create_app
-from apps.ranking.projector import NormalizedDealProjector, RecordMetadata
+from apps.ranking.projector import (
+    EmbeddingCompatibility,
+    NormalizedDealProjector,
+    RecordMetadata,
+)
 from tests.conftest import normalized_event_dict
 from tests.fakes import InMemoryDealRepository
 
@@ -12,7 +16,9 @@ from tests.fakes import InMemoryDealRepository
 async def _client_with_deals() -> tuple[AsyncClient, InMemoryDealRepository]:
     now = datetime.now(timezone.utc)
     repository = InMemoryDealRepository()
-    projector = NormalizedDealProjector(repository)
+    projector = NormalizedDealProjector(
+        repository, EmbeddingCompatibility("fixture-embedding", "1", 1536)
+    )
     values = [
         normalized_event_dict(
             event_id="10000000-0000-0000-0000-000000000001",
@@ -81,3 +87,11 @@ async def test_readiness_reports_database_failure() -> None:
 
     assert response.status_code == 503
     assert response.json() == {"status": "unavailable"}
+
+
+async def test_list_deals_rejects_unbounded_offset() -> None:
+    client, _ = await _client_with_deals()
+    async with client:
+        response = await client.get("/v1/deals", params={"offset": 10_001})
+
+    assert response.status_code == 422
