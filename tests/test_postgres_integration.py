@@ -6,7 +6,7 @@ import psycopg
 import pytest
 
 from apps.ranking.repository import PostgresDealRepository
-from packages.event_contracts import NormalizedDealEventV1
+from event_contracts import NormalizedDealEventV1
 from tests.conftest import BASE_TIME, normalized_event_dict
 
 

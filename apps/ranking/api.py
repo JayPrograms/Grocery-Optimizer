@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 
 from apps.ranking.config import Settings
 from apps.ranking.models import ActiveDeal, ActiveDealPage
@@ -13,12 +13,7 @@ def _repository(request: Request) -> DealRepository:
     return request.app.state.deal_repository
 
 
-def create_app(repository: DealRepository | None = None) -> FastAPI:
-    app = FastAPI(title="Grocery Savings Ranking API", version="0.1.0")
-    app.state.deal_repository = repository or PostgresDealRepository(
-        Settings.from_env().database_url
-    )
-
+def register_deal_routes(app: FastAPI) -> None:
     @app.get("/v1/deals", response_model=ActiveDealPage)
     async def list_active_deals(
         store_location_id: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
@@ -48,27 +43,11 @@ def create_app(repository: DealRepository | None = None) -> FastAPI:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found")
         return deal
 
-    @app.get("/health/live")
-    async def live() -> dict[str, str]:
-        return {"status": "ok"}
 
-    @app.get("/health/ready")
-    async def ready(
-        response: Response,
-        deal_repository: DealRepository = Depends(_repository),
-    ) -> dict[str, str]:
-        if not await deal_repository.ping():
-            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return {"status": "unavailable"}
-        return {"status": "ok"}
-
+def create_app(repository: DealRepository | None = None) -> FastAPI:
+    app = FastAPI(title="Grocery Savings Ranking API", version="0.1.0")
+    app.state.deal_repository = repository or PostgresDealRepository(
+        Settings.from_env().database_url
+    )
+    register_deal_routes(app)
     return app
-
-
-app = create_app()
-
-
-def run() -> None:
-    import uvicorn
-
-    uvicorn.run("apps.ranking.api:app", host="0.0.0.0", port=8000)

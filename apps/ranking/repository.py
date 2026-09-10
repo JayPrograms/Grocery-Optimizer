@@ -15,7 +15,7 @@ from apps.ranking.models import (
     ProductView,
     StoreView,
 )
-from packages.event_contracts import NormalizedDealEventV1
+from event_contracts import NormalizedDealEventV1
 
 
 class DealRepository(Protocol):
@@ -316,7 +316,7 @@ class PostgresDealRepository:
                         offer.package_unit,
                         offer.valid_from,
                         offer.valid_to,
-                        audit.method.value,
+                        audit.method,
                         audit.confidence,
                         audit.embedding_model,
                         audit.embedding_version,

@@ -79,16 +79,6 @@ async def test_list_deals_supports_store_and_product_filters() -> None:
     assert len(response.json()["deals"]) == 1
 
 
-async def test_readiness_reports_database_failure() -> None:
-    client, repository = await _client_with_deals()
-    repository.ready = False
-    async with client:
-        response = await client.get("/health/ready")
-
-    assert response.status_code == 503
-    assert response.json() == {"status": "unavailable"}
-
-
 async def test_list_deals_rejects_unbounded_offset() -> None:
     client, _ = await _client_with_deals()
     async with client:

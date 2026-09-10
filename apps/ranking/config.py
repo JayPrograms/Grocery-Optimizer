@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import os
 
+from psycopg.conninfo import make_conninfo
+
 
 @dataclass(frozen=True, slots=True)
 class Settings:
@@ -19,11 +21,21 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        database_url = os.environ.get("RANKING_DATABASE_URL")
+        if database_url is None and all(
+            os.environ.get(name)
+            for name in ("POSTGRES_HOST", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD")
+        ):
+            database_url = make_conninfo(
+                host=os.environ["POSTGRES_HOST"],
+                port=os.environ.get("POSTGRES_PORT", "5432"),
+                dbname=os.environ["POSTGRES_DB"],
+                user=os.environ["POSTGRES_USER"],
+                password=os.environ["POSTGRES_PASSWORD"],
+            )
         return cls(
-            database_url=os.environ.get(
-                "RANKING_DATABASE_URL",
-                "postgresql://ranking:ranking@localhost:5432/grocery",
-            ),
+            database_url=database_url
+            or "postgresql://ranking:ranking@localhost:5432/grocery",
             kafka_bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
             normalized_deals_topic=os.environ.get(
                 "NORMALIZED_DEALS_TOPIC", "grocery.deals.normalized.v1"

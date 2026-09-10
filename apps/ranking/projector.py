@@ -4,7 +4,7 @@ from enum import StrEnum
 from pydantic import ValidationError
 
 from apps.ranking.repository import DealRepository
-from packages.event_contracts import NormalizedDealEventV1
+from event_contracts import NormalizedDealEventV1
 
 
 class ProjectionOutcome(StrEnum):
@@ -43,11 +43,23 @@ class NormalizedDealProjector:
 
     async def consume(self, value: bytes, metadata: RecordMetadata) -> ProjectionOutcome:
         try:
-            event = NormalizedDealEventV1.model_validate_json(value)
+            event = NormalizedDealEventV1.model_validate_json(
+                value, context={"embedding_dimension": self._embedding.dimension}
+            )
         except ValidationError as error:
+            incompatible_dimension = any(
+                detail["msg"].endswith(
+                    "embedding dimension does not match the configured model dimension"
+                )
+                for detail in error.errors()
+            )
             raise InvalidNormalizedDeal(
-                "normalized deal does not match schema v1",
-                error_code="INVALID_NORMALIZED_DEAL_V1",
+                "normalized deal uses an incompatible embedding"
+                if incompatible_dimension
+                else "normalized deal does not match schema v1",
+                error_code="INCOMPATIBLE_EMBEDDING"
+                if incompatible_dimension
+                else "INVALID_NORMALIZED_DEAL_V1",
             ) from error
 
         audit = event.payload.normalization

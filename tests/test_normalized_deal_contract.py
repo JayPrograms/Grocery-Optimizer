@@ -3,7 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from packages.event_contracts import NormalizedDealEventV1
+from event_contracts import NormalizedDealEventV1
 from tests.conftest import normalized_event_dict
 
 

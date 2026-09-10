@@ -1,1 +1,1 @@
-"""Application service packages."""
+"""Application process packages."""

@@ -14,7 +14,7 @@ from apps.ranking.consumer import (
     classify_database_error,
     database_retry_delay,
 )
-from packages.event_contracts import DeadLetterEventV1
+from event_contracts import DeadLetterEventV1
 
 
 def _record(value: bytes) -> SimpleNamespace:

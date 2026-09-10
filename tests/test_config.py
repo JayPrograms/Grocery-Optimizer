@@ -1,4 +1,5 @@
 import pytest
+from psycopg.conninfo import conninfo_to_dict
 
 from apps.ranking.config import Settings
 
@@ -24,3 +25,22 @@ def test_transactional_id_is_stable_and_configurable(monkeypatch) -> None:
 
     assert first.transactional_id == "ranking-projector-dlq-7"
     assert second.transactional_id == first.transactional_id
+
+
+def test_database_url_uses_shared_postgres_environment(monkeypatch) -> None:
+    monkeypatch.delenv("RANKING_DATABASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_HOST", "postgres")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
+    monkeypatch.setenv("POSTGRES_DB", "grocery_savings")
+    monkeypatch.setenv("POSTGRES_USER", "grocery_app")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "password with spaces")
+
+    connection = conninfo_to_dict(Settings.from_env().database_url)
+
+    assert connection == {
+        "host": "postgres",
+        "port": "5432",
+        "dbname": "grocery_savings",
+        "user": "grocery_app",
+        "password": "password with spaces",
+    }

@@ -7,7 +7,7 @@ from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 import pytest
 
 from apps.ranking.consumer import INVALID_SCHEMA_FAILURE, _send_to_dlq_and_commit
-from packages.event_contracts import DeadLetterEventV1
+from event_contracts import DeadLetterEventV1
 
 
 BOOTSTRAP_SERVERS = os.environ.get("TEST_KAFKA_BOOTSTRAP_SERVERS")

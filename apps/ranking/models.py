@@ -1,10 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
-
-from packages.event_contracts import NormalizationMethod
 
 
 class ApiModel(BaseModel):
@@ -40,7 +39,7 @@ class OfferView(ApiModel):
 
 
 class NormalizationView(ApiModel):
-    method: NormalizationMethod
+    method: Literal["alias", "vector", "llm"]
     confidence: Decimal
     embedding_model: str
     embedding_version: str

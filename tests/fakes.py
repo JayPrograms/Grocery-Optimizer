@@ -10,7 +10,7 @@ from apps.ranking.models import (
     StoreView,
 )
 from apps.ranking.repository import deal_projection_id
-from packages.event_contracts import NormalizedDealEventV1
+from event_contracts import NormalizedDealEventV1
 
 
 class InMemoryDealRepository:

@@ -17,7 +17,8 @@ from apps.ranking.projector import (
     RecordMetadata,
 )
 from apps.ranking.repository import PostgresDealRepository
-from packages.event_contracts import DeadLetterEventV1, DeadLetterPayloadV1
+from event_contracts import DeadLetterEventV1, DeadLetterPayload
+from event_contracts.models import MAX_RAW_DLQ_BYTES
 
 
 class DatabaseFailureDisposition(StrEnum):
@@ -111,7 +112,7 @@ def _build_dlq_event(
         correlation_id=_header_uuid(record, "correlation_id") or uuid4(),
         causation_id=causation_id,
         trace_id=_header_text(record, "trace_id") or "unavailable",
-        payload=DeadLetterPayloadV1(
+        payload=DeadLetterPayload(
             original_topic=record.topic,
             original_partition=record.partition,
             original_offset=record.offset,
@@ -160,7 +161,7 @@ def _dlq_value(
     available_base64_bytes = max_event_bytes - len(empty_raw)
     if available_base64_bytes < 0:
         raise ValueError("DLQ_MAX_EVENT_BYTES is too small for the dead-letter envelope")
-    raw_byte_budget = (available_base64_bytes // 4) * 3
+    raw_byte_budget = min((available_base64_bytes // 4) * 3, MAX_RAW_DLQ_BYTES)
     raw_value = base64.b64encode(record.value[:raw_byte_budget]).decode("ascii")
     event = _build_dlq_event(
         record,
@@ -174,9 +175,15 @@ def _dlq_value(
         raw_byte_budget = max(
             0, raw_byte_budget - ((len(encoded) - max_event_bytes) * 3 // 4 + 3)
         )
-        event.payload.raw_value_base64 = base64.b64encode(
-            record.value[:raw_byte_budget]
-        ).decode("ascii")
+        event = _build_dlq_event(
+            record,
+            event_id=event_id,
+            failure=failure,
+            original_event=None,
+            raw_value_base64=base64.b64encode(record.value[:raw_byte_budget]).decode(
+                "ascii"
+            ),
+        )
         encoded = event.model_dump_json().encode()
     if len(encoded) > max_event_bytes:
         raise ValueError("DLQ_MAX_EVENT_BYTES is too small for the dead-letter envelope")
@@ -308,3 +315,7 @@ async def serve(settings: Settings | None = None) -> None:
 
 def run() -> None:
     asyncio.run(serve())
+
+
+if __name__ == "__main__":
+    run()
