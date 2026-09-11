@@ -142,12 +142,17 @@ def register_optimization_route(app: FastAPI) -> None:
             )
             for item in optimization.items
         ]
+        fuel_price_per_litre = (
+            optimization.fuel_price_per_litre
+            if optimization.fuel_price_per_litre is not None
+            else settings.fuel_price_per_litre
+        )
         calculations = rank_stores(
             grocery_items=grocery_items,
             active_deals=[_as_domain_deal(deal) for deal in active_deals],
             one_way_distances_km=one_way_distances,
             fuel_efficiency_l_per_100km=optimization.fuel_efficiency_l_per_100km,
-            fuel_price_per_litre=settings.fuel_price_per_litre,
+            fuel_price_per_litre=fuel_price_per_litre,
             currency=settings.currency,
         )
 
@@ -211,7 +216,7 @@ def register_optimization_route(app: FastAPI) -> None:
             calculated_at=calculated_at,
             assumptions=OptimizationAssumptions(
                 currency=settings.currency,
-                fuel_price_per_litre=_round_money(settings.fuel_price_per_litre),
+                fuel_price_per_litre=_round_money(fuel_price_per_litre),
                 road_factor=settings.road_factor,
                 distance_method="haversine_with_road_factor",
             ),

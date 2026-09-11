@@ -85,6 +85,9 @@ class OptimizationRequest(ApiModel):
     fuel_efficiency_l_per_100km: Annotated[
         Decimal, Field(gt=0, le=50, allow_inf_nan=False)
     ]
+    fuel_price_per_litre: Annotated[
+        Decimal, Field(ge=0, allow_inf_nan=False)
+    ] | None = None
     radius_km: Annotated[Decimal, Field(gt=0, le=50, allow_inf_nan=False)] = Decimal(
         "15"
     )

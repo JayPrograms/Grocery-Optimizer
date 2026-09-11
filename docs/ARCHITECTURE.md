@@ -385,6 +385,7 @@ Request:
 ```text
 origin: { latitude, longitude }
 fuel_efficiency_l_per_100km: decimal
+fuel_price_per_litre: decimal | null = null  # deployment default when omitted
 radius_km: decimal = 15
 items[1..50]:
   client_item_id: string
@@ -416,7 +417,11 @@ rankings:
 unmatched_items: [...]            # populated when no store can be recommended
 ```
 
-Invalid input returns `422`. No usable list matches returns `200` with an empty ranking and item-level unmatched reasons. A stale projection does not make the API unavailable; readiness fails only when PostgreSQL or required model assets are unavailable.
+Invalid input returns `422`. The optional request fuel price is non-negative and
+overrides the deployment default for that request only. No usable list matches returns
+`200` with an empty ranking and item-level unmatched reasons. A stale projection does
+not make the API unavailable; readiness fails only when PostgreSQL or required model
+assets are unavailable.
 The MVP evaluates all eligible stores but returns only the highest-ranked single-store
 recommendation. The order is net savings descending, grocery savings descending,
 distance ascending, then stable store ID.

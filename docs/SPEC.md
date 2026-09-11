@@ -21,6 +21,7 @@ The MVP proves four things:
    - their origin coordinates;
    - a grocery list with desired quantities;
    - vehicle fuel efficiency in litres per 100 kilometres; and
+   - their current fuel price per litre (or uses the deployment default); and
    - an optional search radius.
 6. The system matches list items to normalized products, calculates the estimated savings at each nearby store, subtracts the incremental round-trip fuel cost, and returns ranked stores.
 
@@ -72,7 +73,9 @@ eligible for recommendation.
 
 ### 3.5 Incremental fuel cost and net savings
 
-The deployment has one configured fuel price per litre, returned in the response so the estimate is explainable.
+The deployment has one configured default fuel price per litre. A shopper may override
+it for one stateless optimization request. The effective price is returned in the
+response so the estimate is explainable.
 
 ```text
 fuel_used_litres = round_trip_distance_km * fuel_efficiency_l_per_100km / 100
@@ -134,7 +137,8 @@ The estimate compares a dedicated round trip to each single store. It is not a b
 
 ### FR-6: Submit an optimization request
 
-- Accept 1–50 grocery list items, origin coordinates, fuel efficiency, and optional radius.
+- Accept 1–50 grocery list items, origin coordinates, fuel efficiency, optional fuel
+  price, and optional radius.
 - Validate that fuel efficiency is greater than zero and no greater than 50 L/100 km.
 - Treat the request as stateless; do not persist the shopper's list or exact origin in the MVP.
 - Normalize grocery-list text against the same catalog without mutating that catalog during the request.

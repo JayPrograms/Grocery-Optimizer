@@ -30,13 +30,29 @@ The exposed health endpoints are:
 - ranking API: `http://127.0.0.1:8000/health/live` and `/health/ready`;
 - ingestion service: `http://127.0.0.1:8001/health/live` and `/health/ready`.
 
+The web client is available at `http://127.0.0.1:3000`. It forwards optimization
+requests to the ranking API over the Compose network.
+
 The ranking API also provides `GET /v1/deals` and `GET /v1/deals/{deal_id}`. Both
 return only deals active at the server's current UTC time.
 
-`POST /v1/optimizations` accepts an origin, grocery list, fuel efficiency, and radius.
+`POST /v1/optimizations` accepts an origin, grocery list, fuel efficiency, optional
+per-request fuel price, and radius.
 It reads active normalized deals and returns the single store with the highest estimated
 net savings, or an empty ranking when no savings-eligible deal matches. Set `CURRENCY`,
 `FUEL_PRICE_PER_LITRE`, and `ROAD_FACTOR` to configure its deployment assumptions.
+When the request omits fuel price, the configured price remains the default.
+
+Run the web client directly with:
+
+```powershell
+Set-Location apps/web
+npm install
+npm run dev
+```
+
+By default the development web server forwards to `http://127.0.0.1:8000`. Set
+`RANKING_API_URL` to use a different ranking API.
 
 ## Ranking projection
 
@@ -59,6 +75,14 @@ Install the development and infrastructure dependencies, then run non-Docker tes
 ```powershell
 python -m pip install -e ".[infrastructure,dev]"
 python -m pytest
+```
+
+Run the web tests and production build with:
+
+```powershell
+Set-Location apps/web
+npm test
+npm run build
 ```
 
 With the Compose stack running, run the live infrastructure smoke tests:

@@ -120,3 +120,10 @@ This file records decisions that constrain the MVP. New decisions are appended. 
 - **Decision:** Include canonical search text, embedding values, and embedding model/version in each normalized deal event.
 - **Why:** The ranking service must rebuild its catalog projection and match list items without querying normalization-owned tables or embedding every catalog product again.
 - **Consequences:** Deal events are larger and duplicate the product vector across store deals. Consumers validate vector dimension/model compatibility. If event volume makes this material, a separate compacted catalog-product topic is the preferred post-MVP evolution.
+
+## ADR-018: Allow a stateless fuel-price request override
+
+- **Status:** Accepted
+- **Decision:** `POST /v1/optimizations` may receive a non-negative fuel price per litre. When omitted, the deployment-configured price remains the default. The effective price is returned in the response assumptions.
+- **Why:** Fuel prices vary by shopper and location, and the web MVP must let the shopper use the price they expect to pay without moving fuel-cost calculations into the presentation layer.
+- **Consequences:** Existing API clients remain compatible. The override is used only for the synchronous calculation and is not persisted. Currency remains deployment-configured.

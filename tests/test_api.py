@@ -223,6 +223,53 @@ async def test_optimization_reports_nonzero_distance_fuel_and_net(
     assert recommendation["net_savings"] == "1.80"
 
 
+async def test_optimization_uses_request_fuel_price_and_reports_effective_assumption(
+    monkeypatch,
+) -> None:
+    event = normalized_event_dict(valid_from=BASE_TIME, valid_to=BASE_TIME + timedelta(days=1))
+    event["payload"]["offer"].update(
+        {"regular_price": "10.00", "deal_price": "4.00"}
+    )
+    client, _ = await _client_for_events([event])
+    monkeypatch.setattr(
+        ranking_api, "haversine_distance_km", lambda *coordinates: Decimal("10")
+    )
+
+    async with client:
+        response = await client.post(
+            "/v1/optimizations",
+            json={
+                "origin": {"latitude": "43", "longitude": "-79"},
+                "fuel_efficiency_l_per_100km": "10",
+                "fuel_price_per_litre": "2.00",
+                "items": [{"client_item_id": "milk", "name": "milk"}],
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["assumptions"]["fuel_price_per_litre"] == "2.00"
+    assert body["rankings"][0]["incremental_fuel_cost"] == "4.80"
+    assert body["rankings"][0]["net_savings"] == "1.20"
+
+
+async def test_optimization_rejects_negative_request_fuel_price() -> None:
+    client, _ = await _client_with_deals()
+
+    async with client:
+        response = await client.post(
+            "/v1/optimizations",
+            json={
+                "origin": {"latitude": "43", "longitude": "-79"},
+                "fuel_efficiency_l_per_100km": "8",
+                "fuel_price_per_litre": "-0.01",
+                "items": [{"client_item_id": "milk", "name": "milk"}],
+            },
+        )
+
+    assert response.status_code == 422
+
+
 async def test_radius_includes_boundary_and_excludes_just_outside(
     monkeypatch,
 ) -> None:
