@@ -181,6 +181,81 @@ def test_incompatible_or_missing_products_do_not_contribute_savings() -> None:
     assert _rank(items, [_deal()]) == []
 
 
+def test_measured_request_does_not_match_deal_with_missing_package_measurement() -> None:
+    deal = _deal(package_quantity=None, package_unit=None)
+
+    assert _rank([GroceryItem("milk", "milk", Decimal("1000"), "ml")], [deal]) == []
+
+
+def test_compatible_mass_units_are_converted_before_package_rounding() -> None:
+    result = _rank(
+        [GroceryItem("flour", "flour", Decimal("1000"), "g")],
+        [
+            _deal(
+                product_id="flour-product",
+                name="flour",
+                deal_price="3",
+                regular_price="5",
+                package_quantity="1",
+                package_unit="kg",
+            )
+        ],
+    )[0]
+
+    assert result.matched_items[0].units_needed == 1
+    assert result.grocery_savings == Decimal("2")
+
+
+def test_unitless_quantity_explicitly_means_advertised_package_count() -> None:
+    result = _rank(
+        [GroceryItem("yogurt", "yogurt", Decimal("3"))],
+        [
+            _deal(
+                product_id="yogurt-product",
+                name="yogurt",
+                package_quantity="2",
+                package_unit="count",
+            )
+        ],
+    )[0]
+
+    assert result.matched_items[0].units_needed == 3
+
+
+def test_explicit_count_quantity_uses_deal_package_quantity() -> None:
+    result = _rank(
+        [GroceryItem("yogurt", "yogurt", Decimal("3"), "count")],
+        [
+            _deal(
+                product_id="yogurt-product",
+                name="yogurt",
+                package_quantity="2",
+                package_unit="each",
+            )
+        ],
+    )[0]
+
+    assert result.matched_items[0].units_needed == 2
+
+
+def test_unique_canonical_name_containment_resolves_short_grocery_name() -> None:
+    result = _rank(
+        [GroceryItem("milk", "milk")],
+        [_deal(name="whole milk")],
+    )[0]
+
+    assert result.matched_items[0].canonical_name == "whole milk"
+
+
+def test_ambiguous_canonical_name_containment_stays_unmatched() -> None:
+    deals = [
+        _deal(product_id="whole", name="whole milk"),
+        _deal(deal_id="deal-2", product_id="chocolate", name="chocolate milk"),
+    ]
+
+    assert _rank([GroceryItem("milk", "milk")], deals) == []
+
+
 def test_rank_order_uses_net_then_grocery_savings_distance_and_store_id() -> None:
     items = [GroceryItem("milk", "milk")]
     deals = [
@@ -208,6 +283,36 @@ def test_best_deal_per_item_is_selected_deterministically() -> None:
     assert result.matched_items[0].item_savings == Decimal("3")
 
 
+def test_best_deal_accounts_for_different_package_quantities() -> None:
+    items = [GroceryItem("flour", "flour", Decimal("3"), "kg")]
+    deals = [
+        _deal(
+            deal_id="one-kilo",
+            product_id="flour",
+            name="flour",
+            deal_price="3.50",
+            regular_price="5",
+            package_quantity="1",
+            package_unit="kg",
+        ),
+        _deal(
+            deal_id="two-kilo",
+            product_id="flour",
+            name="flour",
+            deal_price="5",
+            regular_price="8",
+            package_quantity="2",
+            package_unit="kg",
+        ),
+    ]
+
+    result = _rank(items, deals)[0]
+
+    assert result.matched_items[0].deal_id == "two-kilo"
+    assert result.matched_items[0].units_needed == 2
+    assert result.grocery_savings == Decimal("6")
+
+
 def test_haversine_distance_is_zero_for_same_point() -> None:
     assert haversine_distance_km(
         Decimal("43.6532"),
@@ -215,3 +320,15 @@ def test_haversine_distance_is_zero_for_same_point() -> None:
         Decimal("43.6532"),
         Decimal("-79.3832"),
     ) == 0
+
+
+def test_haversine_known_distance_and_antimeridian_are_stable() -> None:
+    one_degree = haversine_distance_km(
+        Decimal("0"), Decimal("0"), Decimal("1"), Decimal("0")
+    )
+    antimeridian = haversine_distance_km(
+        Decimal("0"), Decimal("179.9"), Decimal("0"), Decimal("-179.9")
+    )
+
+    assert float(one_degree) == pytest.approx(111.195, abs=0.001)
+    assert float(antimeridian) == pytest.approx(22.239, abs=0.001)

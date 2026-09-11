@@ -60,7 +60,15 @@ item_savings = max(regular_price - deal_price, 0) * units_needed
 
 Only comparable quantities and units may be matched. If quantity conversion is unavailable or unsafe, the item is reported as unmatched and contributes zero savings.
 
+When a grocery item supplies a unit, the ranking service converts compatible mass
+(`g`/`kg`), volume (`ml`/`L`), and count units before applying the package formula.
+When the item omits a unit, its quantity explicitly means a count of advertised
+packages, so the effective deal package quantity is one. A measured request never
+matches a deal whose package measurement is missing.
+
 Store gross savings is the sum of item savings. Deals with missing regular price cannot establish savings and therefore do not contribute to ranking, though they may remain stored for diagnostics.
+Savings eligibility is strictly positive: a zero-savings match does not make a store
+eligible for recommendation.
 
 ### 3.5 Incremental fuel cost and net savings
 
@@ -73,6 +81,10 @@ net_savings = gross_savings - incremental_fuel_cost
 ```
 
 All money is calculated with decimal arithmetic in one configured currency. Monetary values returned by the API are rounded to two decimal places. Stores are sorted by net savings descending, then gross savings descending, then distance ascending, then stable store ID.
+For presentation, each item saving is rounded first, returned grocery savings is the
+sum of those displayed item values, returned fuel cost is rounded independently, and
+returned net savings is their difference. This preserves both displayed arithmetic
+identities.
 
 The estimate compares a dedicated round trip to each single store. It is not a basket-price comparison and does not model the price of unmatched items.
 

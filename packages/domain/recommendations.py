@@ -91,16 +91,38 @@ def _normalized_unit(value: str | None) -> str | None:
         return None
     normalized = _normalized_text(value)
     aliases = {
+        "gram": "g",
+        "grams": "g",
+        "kilogram": "kg",
+        "kilograms": "kg",
+        "milliliter": "ml",
+        "milliliters": "ml",
+        "millilitre": "ml",
+        "millilitres": "ml",
         "liter": "l",
         "liters": "l",
         "litre": "l",
         "litres": "l",
-        "kilogram": "kg",
-        "kilograms": "kg",
-        "gram": "g",
-        "grams": "g",
+        "ct": "count",
+        "ea": "count",
+        "each": "count",
     }
     return aliases.get(normalized, normalized)
+
+
+def _normalized_measurement(quantity: Decimal, unit: str) -> tuple[Decimal, str]:
+    normalized_unit = _normalized_unit(unit)
+    conversions = {
+        "g": (Decimal("1"), "g"),
+        "kg": (Decimal("1000"), "g"),
+        "ml": (Decimal("1"), "ml"),
+        "l": (Decimal("1000"), "ml"),
+        "count": (Decimal("1"), "count"),
+    }
+    factor, base_unit = conversions.get(
+        normalized_unit, (Decimal("1"), normalized_unit or "")
+    )
+    return quantity * factor, base_unit
 
 
 def calculate_round_trip_distance(one_way_distance_km: Decimal) -> Decimal:
@@ -194,10 +216,26 @@ def calculate_grocery_savings(
     return units_needed, per_unit_savings * units_needed
 
 
-def _matches_product(item: GroceryItem, deal: Deal) -> bool:
+def _resolve_product_id(item: GroceryItem, deals: Sequence[Deal]) -> str | None:
     if item.canonical_product_id is not None:
-        return item.canonical_product_id == deal.canonical_product_id
-    return _normalized_text(item.name) == _normalized_text(deal.canonical_name)
+        return item.canonical_product_id
+
+    requested_name = _normalized_text(item.name)
+    products = {
+        (deal.canonical_product_id, _normalized_text(deal.canonical_name))
+        for deal in deals
+    }
+    exact_ids = {product_id for product_id, name in products if name == requested_name}
+    if len(exact_ids) == 1:
+        return exact_ids.pop()
+
+    requested_tokens = frozenset(requested_name.split())
+    contained_ids = {
+        product_id
+        for product_id, name in products
+        if requested_tokens and requested_tokens < frozenset(name.split())
+    }
+    return contained_ids.pop() if len(contained_ids) == 1 else None
 
 
 def _savings_for_deal(item: GroceryItem, deal: Deal) -> tuple[int, Decimal] | None:
@@ -205,13 +243,26 @@ def _savings_for_deal(item: GroceryItem, deal: Deal) -> tuple[int, Decimal] | No
         return None
 
     requested_unit = _normalized_unit(item.unit)
-    package_unit = _normalized_unit(deal.package_unit)
     if requested_unit is None:
+        # Without a measurement unit, quantity means a count of advertised packages.
         package_quantity = Decimal("1")
     else:
-        if package_unit is None or requested_unit != package_unit:
+        if deal.package_quantity is None or deal.package_unit is None:
             return None
-        package_quantity = deal.package_quantity or Decimal("1")
+        requested_quantity, requested_unit = _normalized_measurement(
+            item.quantity, item.unit or ""
+        )
+        package_quantity, package_unit = _normalized_measurement(
+            deal.package_quantity, deal.package_unit
+        )
+        if requested_unit != package_unit:
+            return None
+        return calculate_grocery_savings(
+            requested_quantity=requested_quantity,
+            regular_price=deal.regular_price,
+            deal_price=deal.deal_price,
+            deal_package_quantity=package_quantity,
+        )
 
     return calculate_grocery_savings(
         requested_quantity=item.quantity,
@@ -221,10 +272,14 @@ def _savings_for_deal(item: GroceryItem, deal: Deal) -> tuple[int, Decimal] | No
     )
 
 
-def _best_match(item: GroceryItem, deals: Sequence[Deal]) -> MatchedItem | None:
+def _best_match(
+    item: GroceryItem,
+    canonical_product_id: str,
+    deals: Sequence[Deal],
+) -> MatchedItem | None:
     candidates: list[MatchedItem] = []
     for deal in deals:
-        if not _matches_product(item, deal):
+        if deal.canonical_product_id != canonical_product_id:
             continue
         result = _savings_for_deal(item, deal)
         if result is None:
@@ -273,10 +328,17 @@ def rank_stores(
             raise ValueError("store location IDs must not be empty")
         _require_non_negative(distance, "one-way store distance")
 
+    eligible_deals = [
+        deal
+        for deal in active_deals
+        if deal.currency == currency and deal.store_location_id in one_way_distances_km
+    ]
+    product_ids = {
+        item: _resolve_product_id(item, eligible_deals) for item in grocery_items
+    }
     deals_by_store: dict[str, list[Deal]] = defaultdict(list)
-    for deal in active_deals:
-        if deal.currency == currency and deal.store_location_id in one_way_distances_km:
-            deals_by_store[deal.store_location_id].append(deal)
+    for deal in eligible_deals:
+        deals_by_store[deal.store_location_id].append(deal)
 
     calculations: list[StoreCalculation] = []
     for store_id in sorted(deals_by_store):
@@ -284,7 +346,12 @@ def rank_stores(
         matched: list[MatchedItem] = []
         unmatched: list[UnmatchedItem] = []
         for item in grocery_items:
-            match = _best_match(item, store_deals)
+            product_id = product_ids[item]
+            match = (
+                None
+                if product_id is None
+                else _best_match(item, product_id, store_deals)
+            )
             if match is None:
                 unmatched.append(
                     UnmatchedItem(

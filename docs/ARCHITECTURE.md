@@ -421,6 +421,14 @@ The MVP evaluates all eligible stores but returns only the highest-ranked single
 recommendation. The order is net savings descending, grocery savings descending,
 distance ascending, then stable store ID.
 
+The deterministic request matcher first accepts an exact cleaned canonical name. If
+there is no exact match, it accepts a requested-name token set contained by exactly one
+nearby canonical product name; multiple candidates remain unmatched. Explicit grocery
+units are converted within mass (`g`/`kg`), volume (`ml`/`L`), and count dimensions.
+An omitted unit means that quantity counts advertised packages. Displayed item savings
+are rounded to cents and summed for displayed grocery savings; displayed net savings
+is displayed grocery savings minus displayed fuel cost.
+
 ### 7.3 Health boundaries
 
 - `/health/live` verifies the process event loop.

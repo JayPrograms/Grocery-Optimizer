@@ -154,6 +154,23 @@ def register_optimization_route(app: FastAPI) -> None:
         rankings: list[StoreRecommendationView] = []
         if calculations:
             best = calculations[0]
+            matched_items = [
+                MatchedItemView(
+                    client_item_id=item.client_item_id,
+                    requested_name=item.requested_name,
+                    canonical_product_id=UUID(item.canonical_product_id),
+                    canonical_name=item.canonical_name,
+                    deal_id=UUID(item.deal_id),
+                    units_needed=item.units_needed,
+                    item_savings=_round_money(item.item_savings),
+                )
+                for item in best.matched_items
+            ]
+            displayed_grocery_savings = sum(
+                (item.item_savings for item in matched_items),
+                start=Decimal("0.00"),
+            )
+            displayed_fuel_cost = _round_money(best.incremental_fuel_cost)
             rankings.append(
                 StoreRecommendationView(
                     rank=1,
@@ -163,18 +180,7 @@ def register_optimization_route(app: FastAPI) -> None:
                         best.incremental_round_trip_distance_km
                     ),
                     fuel_consumed_litres=_round_measurement(best.fuel_consumed_litres),
-                    matched_items=[
-                        MatchedItemView(
-                            client_item_id=item.client_item_id,
-                            requested_name=item.requested_name,
-                            canonical_product_id=UUID(item.canonical_product_id),
-                            canonical_name=item.canonical_name,
-                            deal_id=UUID(item.deal_id),
-                            units_needed=item.units_needed,
-                            item_savings=_round_money(item.item_savings),
-                        )
-                        for item in best.matched_items
-                    ],
+                    matched_items=matched_items,
                     unmatched_items=[
                         UnmatchedItemView(
                             client_item_id=item.client_item_id,
@@ -183,9 +189,9 @@ def register_optimization_route(app: FastAPI) -> None:
                         )
                         for item in best.unmatched_items
                     ],
-                    grocery_savings=_round_money(best.grocery_savings),
-                    incremental_fuel_cost=_round_money(best.incremental_fuel_cost),
-                    net_savings=_round_money(best.net_savings),
+                    grocery_savings=displayed_grocery_savings,
+                    incremental_fuel_cost=displayed_fuel_cost,
+                    net_savings=displayed_grocery_savings - displayed_fuel_cost,
                 )
             )
 
