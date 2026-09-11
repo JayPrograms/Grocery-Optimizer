@@ -44,3 +44,32 @@ def test_database_url_uses_shared_postgres_environment(monkeypatch) -> None:
         "user": "grocery_app",
         "password": "password with spaces",
     }
+
+
+def test_recommendation_settings_are_decimal_and_configurable(monkeypatch) -> None:
+    monkeypatch.setenv("CURRENCY", "CAD")
+    monkeypatch.setenv("FUEL_PRICE_PER_LITRE", "1.749")
+    monkeypatch.setenv("ROAD_FACTOR", "1.25")
+
+    settings = Settings.from_env()
+    settings.validate_recommendations()
+
+    assert str(settings.fuel_price_per_litre) == "1.749"
+    assert str(settings.road_factor) == "1.25"
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "message"),
+    [
+        ("CURRENCY", "cad", "CURRENCY"),
+        ("FUEL_PRICE_PER_LITRE", "-1", "FUEL_PRICE_PER_LITRE"),
+        ("ROAD_FACTOR", "0", "ROAD_FACTOR"),
+    ],
+)
+def test_invalid_recommendation_settings_are_rejected(
+    monkeypatch, name: str, value: str, message: str
+) -> None:
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(ValueError, match=message):
+        Settings.from_env().validate_recommendations()

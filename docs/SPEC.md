@@ -131,7 +131,8 @@ The estimate compares a dedicated round trip to each single store. It is not a b
 
 - Consider only current deals at stores inside the radius.
 - Use at most one qualifying deal per requested item per store; choose the deal producing the greatest item savings.
-- Return the top 10 stores by default, with a maximum of 25.
+- Return exactly the highest-ranked single store when at least one store has a matched,
+  savings-eligible item.
 - For each store return distance, matched and unmatched items, gross savings, fuel cost, net savings, assumptions, and calculation timestamp.
 - Include stores with negative net savings when they have at least one matched, savings-eligible item so the tradeoff is visible.
 - Exclude stores with no matched, savings-eligible items.

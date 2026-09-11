@@ -386,7 +386,6 @@ Request:
 origin: { latitude, longitude }
 fuel_efficiency_l_per_100km: decimal
 radius_km: decimal = 15
-limit: integer = 10
 items[1..50]:
   client_item_id: string
   name: string
@@ -404,17 +403,23 @@ assumptions:
   road_factor: decimal
   distance_method: haversine_with_road_factor
 rankings:
-  rank: integer
+  rank: 1                         # zero or one ranking is returned
   store: StoreLocation
   one_way_distance_km: decimal
+  incremental_round_trip_distance_km: decimal
+  fuel_consumed_litres: decimal
   matched_items: [...]
   unmatched_items: [...]
-  gross_savings: decimal
+  grocery_savings: decimal
   incremental_fuel_cost: decimal
   net_savings: decimal
+unmatched_items: [...]            # populated when no store can be recommended
 ```
 
 Invalid input returns `422`. No usable list matches returns `200` with an empty ranking and item-level unmatched reasons. A stale projection does not make the API unavailable; readiness fails only when PostgreSQL or required model assets are unavailable.
+The MVP evaluates all eligible stores but returns only the highest-ranked single-store
+recommendation. The order is net savings descending, grocery savings descending,
+distance ascending, then stable store ID.
 
 ### 7.3 Health boundaries
 

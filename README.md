@@ -1,8 +1,7 @@
 # Grocery Savings Optimizer
 
-The repository contains the shared event contracts, local MVP infrastructure, and the
-ranking service's normalized-deal projection and active-deal query API. Recommendation
-and optimization behavior is not implemented yet.
+The repository contains the shared event contracts, local MVP infrastructure, the
+ranking service's normalized-deal projection, and the single-store recommendation API.
 
 ## Local infrastructure
 
@@ -33,6 +32,11 @@ The exposed health endpoints are:
 
 The ranking API also provides `GET /v1/deals` and `GET /v1/deals/{deal_id}`. Both
 return only deals active at the server's current UTC time.
+
+`POST /v1/optimizations` accepts an origin, grocery list, fuel efficiency, and radius.
+It reads active normalized deals and returns the single store with the highest estimated
+net savings, or an empty ranking when no savings-eligible deal matches. Set `CURRENCY`,
+`FUEL_PRICE_PER_LITRE`, and `ROAD_FACTOR` to configure its deployment assumptions.
 
 ## Ranking projection
 

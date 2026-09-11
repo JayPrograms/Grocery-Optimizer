@@ -101,6 +101,9 @@ services:
     environment:
       <<: *postgres-environment
       SERVICE_NAME: ranking-api
+      CURRENCY: ${CURRENCY:-CAD}
+      FUEL_PRICE_PER_LITRE: ${FUEL_PRICE_PER_LITRE:-1.60}
+      ROAD_FACTOR: ${ROAD_FACTOR:-1.2}
     depends_on:
       postgres:
         condition: service_healthy

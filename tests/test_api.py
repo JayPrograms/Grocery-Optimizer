@@ -85,3 +85,77 @@ async def test_list_deals_rejects_unbounded_offset() -> None:
         response = await client.get("/v1/deals", params={"offset": 10_001})
 
     assert response.status_code == 422
+
+
+async def test_optimization_uses_active_projection_and_returns_exactly_one_store() -> None:
+    client, repository = await _client_with_deals()
+    second = normalized_event_dict(
+        event_id="10000000-0000-0000-0000-000000000004",
+        source_deal_id="active-second-store",
+        valid_from=datetime.now(timezone.utc) - timedelta(hours=1),
+        valid_to=datetime.now(timezone.utc) + timedelta(hours=1),
+        deal_price="1.00",
+    )
+    second["payload"]["store"].update(
+        {
+            "store_location_id": "store-2",
+            "store_name": "Market Uptown",
+            "address_summary": "2 Main St",
+            "latitude": "43.6532",
+            "longitude": "-79.3832",
+        }
+    )
+    projector = NormalizedDealProjector(
+        repository, EmbeddingCompatibility("fixture-embedding", "1", 1536)
+    )
+    await projector.consume(
+        json.dumps(second).encode(), RecordMetadata("topic", 0, 4)
+    )
+
+    async with client:
+        response = await client.post(
+            "/v1/optimizations",
+            json={
+                "origin": {"latitude": "43.6532", "longitude": "-79.3832"},
+                "fuel_efficiency_l_per_100km": "8",
+                "items": [
+                    {"client_item_id": "milk", "name": "Whole Milk", "quantity": "2"},
+                    {"client_item_id": "eggs", "name": "eggs"},
+                ],
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["rankings"]) == 1
+    recommendation = body["rankings"][0]
+    assert recommendation["rank"] == 1
+    assert recommendation["store"]["store_location_id"] == "store-2"
+    assert recommendation["grocery_savings"] == "7.98"
+    assert recommendation["incremental_fuel_cost"] == "0.00"
+    assert recommendation["net_savings"] == "7.98"
+    assert recommendation["unmatched_items"][0]["client_item_id"] == "eggs"
+
+
+async def test_optimization_with_no_useful_match_returns_no_recommendation() -> None:
+    client, _ = await _client_with_deals()
+
+    async with client:
+        response = await client.post(
+            "/v1/optimizations",
+            json={
+                "origin": {"latitude": "43.6532", "longitude": "-79.3832"},
+                "fuel_efficiency_l_per_100km": "8",
+                "items": [{"client_item_id": "eggs", "name": "eggs"}],
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["rankings"] == []
+    assert response.json()["unmatched_items"] == [
+        {
+            "client_item_id": "eggs",
+            "requested_name": "eggs",
+            "reason": "no_savings_eligible_deal",
+        }
+    ]

@@ -26,6 +26,7 @@ def test_ranking_service_adds_deal_routes_to_health_routes() -> None:
         "/health/ready",
         "/v1/deals",
         "/v1/deals/{deal_id}",
+        "/v1/optimizations",
     }
 
 

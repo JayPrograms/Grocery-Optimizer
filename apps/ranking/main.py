@@ -1,7 +1,8 @@
-"""Infrastructure-only shell for the ranking API."""
+"""HTTP entry point for the ranking and recommendation API."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import os
 from typing import Literal, TypedDict
 
@@ -9,7 +10,7 @@ import psycopg
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from apps.ranking.api import register_deal_routes
+from apps.ranking.api import register_deal_routes, register_optimization_route
 from apps.ranking.config import Settings
 from apps.ranking.repository import PostgresDealRepository
 
@@ -45,7 +46,11 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
-app.state.deal_repository = PostgresDealRepository(Settings.from_env().database_url)
+settings = Settings.from_env()
+settings.validate_recommendations()
+app.state.settings = settings
+app.state.clock = lambda: datetime.now(timezone.utc)
+app.state.deal_repository = PostgresDealRepository(settings.database_url)
 
 
 @app.get("/health/live")
@@ -74,6 +79,7 @@ def ready() -> HealthResponse | JSONResponse:
 
 
 register_deal_routes(app)
+register_optimization_route(app)
 
 
 def run() -> None:

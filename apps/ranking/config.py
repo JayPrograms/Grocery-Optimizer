@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from decimal import Decimal
 import os
 
 from psycopg.conninfo import make_conninfo
@@ -18,6 +19,9 @@ class Settings:
     dlq_max_event_bytes: int
     database_retry_base_seconds: float
     database_retry_max_seconds: float
+    currency: str = "CAD"
+    fuel_price_per_litre: Decimal = Decimal("1.60")
+    road_factor: Decimal = Decimal("1.2")
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -55,7 +59,25 @@ class Settings:
             database_retry_max_seconds=float(
                 os.environ.get("DATABASE_RETRY_MAX_SECONDS", "30")
             ),
+            currency=os.environ.get("CURRENCY", "CAD"),
+            fuel_price_per_litre=Decimal(
+                os.environ.get("FUEL_PRICE_PER_LITRE", "1.60")
+            ),
+            road_factor=Decimal(os.environ.get("ROAD_FACTOR", "1.2")),
         )
+
+    def validate_recommendations(self) -> None:
+        if (
+            len(self.currency) != 3
+            or not self.currency.isascii()
+            or not self.currency.isalpha()
+            or not self.currency.isupper()
+        ):
+            raise ValueError("CURRENCY must be a three-letter uppercase code")
+        if not self.fuel_price_per_litre.is_finite() or self.fuel_price_per_litre < 0:
+            raise ValueError("FUEL_PRICE_PER_LITRE must be non-negative")
+        if not self.road_factor.is_finite() or self.road_factor <= 0:
+            raise ValueError("ROAD_FACTOR must be positive")
 
     def validate_projector(self) -> None:
         if not self.embedding_model or not self.embedding_version:
