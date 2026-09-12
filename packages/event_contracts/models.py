@@ -240,6 +240,27 @@ class NormalizedDealEvent(EventEnvelope):
     payload: NormalizedDealPayload
 
 
+class RetryFailure(ContractModel):
+    classification: Literal[
+        "transient_dependency", "transient_database", "transient_unknown"
+    ]
+    code: ShortText
+    message: DisplayText
+
+
+class NormalizationRetryPayload(ContractModel):
+    original_event: RawDealEvent
+    attempt: Annotated[int, Field(ge=1, le=2)]
+    not_before: UtcDateTime
+    last_error: RetryFailure
+
+
+class NormalizationRetryEvent(EventEnvelope):
+    event_type: Literal["grocery.deal.normalization_retry"]
+    schema_version: Literal[1]
+    payload: NormalizationRetryPayload
+
+
 FailedStage = Literal["deserialize", "validate", "normalize", "persist", "project"]
 FailureClassification = Literal[
     "terminal_invalid", "terminal_unresolvable", "retries_exhausted"
@@ -318,6 +339,7 @@ class DeadLetterEvent(EventEnvelope):
 
 # Explicit version aliases support callers that name contracts by their wire version.
 RawDealEventV1 = RawDealEvent
+NormalizationRetryEventV1 = NormalizationRetryEvent
 NormalizedDealEventV1 = NormalizedDealEvent
 DeadLetterEventV1 = DeadLetterEvent
 

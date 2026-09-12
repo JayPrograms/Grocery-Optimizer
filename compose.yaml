@@ -85,6 +85,43 @@ services:
     networks:
       - backend
 
+  kafka-init:
+    image: apache/kafka:4.3.1
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic grocery.deals.raw.v1 --partitions 3 --replication-factor 1 --config retention.ms=604800000
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic grocery.deals.normalize.retry.1m.v1 --partitions 3 --replication-factor 1 --config retention.ms=604800000
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic grocery.deals.normalize.retry.10m.v1 --partitions 3 --replication-factor 1 --config retention.ms=604800000
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic grocery.deals.normalized.v1 --partitions 3 --replication-factor 1 --config cleanup.policy=compact,delete --config retention.ms=2592000000
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic grocery.deals.dlq.v1 --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+    networks:
+      - backend
+
+  migrate:
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
+    restart: "no"
+    environment:
+      <<: *postgres-environment
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    volumes:
+      - ./infra/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for migration in /migrations/*.sql; do
+          psql --host "$$POSTGRES_HOST" --port "$$POSTGRES_PORT" --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" --set ON_ERROR_STOP=1 --file "$$migration"
+        done
+    networks:
+      - backend
+
   api:
     <<: *python-service
     command:
@@ -105,8 +142,8 @@ services:
       FUEL_PRICE_PER_LITRE: ${FUEL_PRICE_PER_LITRE:-1.60}
       ROAD_FACTOR: ${ROAD_FACTOR:-1.2}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     healthcheck:
@@ -138,9 +175,11 @@ services:
     environment:
       <<: *kafka-environment
       SERVICE_NAME: ingestion-service
+      INGESTION_TOKEN: ${INGESTION_TOKEN:-local-development-token}
+      INGESTION_TRANSACTIONAL_ID: ${INGESTION_TRANSACTIONAL_ID:-ingestion-api-0}
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${INGESTION_PORT:-8001}:8000"
     healthcheck:
@@ -172,11 +211,14 @@ services:
     environment:
       <<: [*postgres-environment, *kafka-environment]
       SERVICE_NAME: normalization-worker
+      NORMALIZATION_RETRY_1M_DELAY_SECONDS: ${NORMALIZATION_RETRY_1M_DELAY_SECONDS:-60}
+      NORMALIZATION_RETRY_10M_DELAY_SECONDS: ${NORMALIZATION_RETRY_10M_DELAY_SECONDS:-600}
+      NORMALIZATION_FIXTURE_FAILURES: ${NORMALIZATION_FIXTURE_FAILURES:-0}
     depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -189,6 +231,34 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+
+  normalization-outbox:
+    <<: *python-service
+    command: ["python", "-m", "apps.normalization.outbox"]
+    environment:
+      <<: [*postgres-environment, *kafka-environment]
+      SERVICE_NAME: normalization-outbox
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+
+  ranking-projector:
+    <<: *python-service
+    command: ["python", "-m", "apps.ranking.consumer"]
+    environment:
+      <<: [*postgres-environment, *kafka-environment]
+      SERVICE_NAME: ranking-projector
+      RANKING_EMBEDDING_MODEL: ${RANKING_EMBEDDING_MODEL:-fixture-embedding-v1}
+      RANKING_EMBEDDING_VERSION: ${RANKING_EMBEDDING_VERSION:-1}
+      RANKING_EMBEDDING_DIMENSION: "1536"
+      RANKING_PROJECTOR_TRANSACTIONAL_ID: ${RANKING_PROJECTOR_TRANSACTIONAL_ID:-ranking-projector-dlq-0}
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
 
   web:
     build:

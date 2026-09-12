@@ -1,0 +1,89 @@
+{
+  "trace_id": "fixture-release-flow",
+  "deals": [
+    {
+      "source": "fixture-flyer",
+      "source_deal_id": "milk-vector",
+      "source_updated_at": "2026-09-11T12:00:00Z",
+      "store": {
+        "store_location_id": "fixture-store-1",
+        "chain_name": "Fixture Market",
+        "store_name": "Fixture Market Downtown",
+        "address_summary": "100 Market Street, Toronto, ON",
+        "latitude": "43.6532",
+        "longitude": "-79.3832"
+      },
+      "product": {
+        "raw_name": "Whole Milk 1 L",
+        "raw_brand": null,
+        "raw_size": "1",
+        "raw_unit": "L"
+      },
+      "offer": {
+        "deal_price": "3.49",
+        "regular_price": "4.99",
+        "currency": "CAD",
+        "package_quantity": "1",
+        "package_unit": "L",
+        "valid_from": "2026-01-01T00:00:00Z",
+        "valid_to": "2030-01-01T00:00:00Z"
+      }
+    },
+    {
+      "source": "fixture-flyer",
+      "source_deal_id": "dragonfruit-llm",
+      "source_updated_at": "2026-09-11T12:00:00Z",
+      "store": {
+        "store_location_id": "fixture-store-1",
+        "chain_name": "Fixture Market",
+        "store_name": "Fixture Market Downtown",
+        "address_summary": "100 Market Street, Toronto, ON",
+        "latitude": "43.6532",
+        "longitude": "-79.3832"
+      },
+      "product": {
+        "raw_name": "Dragon Fruit Special",
+        "raw_brand": null,
+        "raw_size": "1",
+        "raw_unit": "each"
+      },
+      "offer": {
+        "deal_price": "2.00",
+        "regular_price": "3.50",
+        "currency": "CAD",
+        "package_quantity": "1",
+        "package_unit": "each",
+        "valid_from": "2026-01-01T00:00:00Z",
+        "valid_to": "2030-01-01T00:00:00Z"
+      }
+    },
+    {
+      "source": "fixture-flyer",
+      "source_deal_id": "retry-once",
+      "source_updated_at": "2026-09-11T12:00:00Z",
+      "store": {
+        "store_location_id": "fixture-store-1",
+        "chain_name": "Fixture Market",
+        "store_name": "Fixture Market Downtown",
+        "address_summary": "100 Market Street, Toronto, ON",
+        "latitude": "43.6532",
+        "longitude": "-79.3832"
+      },
+      "product": {
+        "raw_name": "Bread",
+        "raw_brand": null,
+        "raw_size": null,
+        "raw_unit": null
+      },
+      "offer": {
+        "deal_price": "2.50",
+        "regular_price": "4.00",
+        "currency": "CAD",
+        "package_quantity": null,
+        "package_unit": null,
+        "valid_from": "2026-01-01T00:00:00Z",
+        "valid_to": "2030-01-01T00:00:00Z"
+      }
+    }
+  ]
+}

@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager, suppress
+import logging
 import os
-from typing import Literal, TypedDict
+from typing import AsyncIterator, Literal, TypedDict
 
 import psycopg
 from confluent_kafka.admin import AdminClient
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from apps.normalization.worker import serve
+
 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "normalization-worker")
+WORKER_TASK: asyncio.Task[None] | None = None
+LOGGER = logging.getLogger(__name__)
 
 
 class HealthResponse(TypedDict):
@@ -49,11 +56,34 @@ def check_postgres() -> None:
                 raise RuntimeError("PostgreSQL readiness query returned an invalid result")
 
 
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    global WORKER_TASK
+    WORKER_TASK = asyncio.create_task(serve())
+    WORKER_TASK.add_done_callback(_log_worker_exit)
+    try:
+        yield
+    finally:
+        WORKER_TASK.cancel()
+        with suppress(asyncio.CancelledError):
+            await WORKER_TASK
+        WORKER_TASK = None
+
+
+def _log_worker_exit(task: asyncio.Task[None]) -> None:
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        LOGGER.error("normalization worker stopped", exc_info=error)
+
+
 app = FastAPI(
     title="Grocery Savings Normalization Worker",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=lifespan,
 )
 
 
@@ -74,6 +104,9 @@ def ready() -> HealthResponse | JSONResponse:
             dependencies[dependency] = "unavailable"
         else:
             dependencies[dependency] = "ok"
+
+    if WORKER_TASK is not None:
+        dependencies["worker"] = "unavailable" if WORKER_TASK.done() else "ok"
 
     if "unavailable" in dependencies.values():
         return JSONResponse(

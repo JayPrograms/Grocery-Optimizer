@@ -16,6 +16,7 @@ from apps.ranking.models import (
     StoreView,
 )
 from event_contracts import NormalizedDealEventV1
+from domain import deterministic_embedding, vector_literal
 
 
 class DealRepository(Protocol):
@@ -41,6 +42,8 @@ class DealRepository(Protocol):
     async def get_active(self, deal_id: UUID, *, now: datetime) -> ActiveDeal | None: ...
 
     async def ping(self) -> bool: ...
+
+    async def match_product(self, name: str) -> UUID | None: ...
 
 
 _ACTIVE_DEAL_SELECT = """
@@ -388,6 +391,30 @@ class PostgresDealRepository:
 
     async def ping(self) -> bool:
         return await asyncio.to_thread(self._ping_sync)
+
+    async def match_product(self, name: str) -> UUID | None:
+        return await asyncio.to_thread(self._match_product_sync, name)
+
+    def _match_product_sync(self, name: str) -> UUID | None:
+        embedding = vector_literal(deterministic_embedding(name))
+        with psycopg.connect(self._database_url, row_factory=dict_row) as connection:
+            rows = connection.execute(
+                """
+                SELECT canonical_product_id, 1 - (embedding <=> %s::vector) AS similarity
+                FROM ranking.catalog_projection
+                WHERE embedding_model = 'fixture-embedding-v1' AND embedding_version = '1'
+                ORDER BY embedding <=> %s::vector, canonical_product_id
+                LIMIT 2
+                """,
+                (embedding, embedding),
+            ).fetchall()
+        if not rows:
+            return None
+        best = Decimal(str(rows[0]["similarity"]))
+        second = Decimal(str(rows[1]["similarity"])) if len(rows) > 1 else Decimal("-1")
+        if best < Decimal("0.70") or best - second < Decimal("0.05"):
+            return None
+        return rows[0]["canonical_product_id"]
 
     def _ping_sync(self) -> bool:
         try:

@@ -22,7 +22,18 @@ EXPECTED_SERVICES = {
     "ingestion-api",
     "kafka",
     "normalization-worker",
+    "normalization-outbox",
     "postgres",
+    "ranking-projector",
+    "web",
+}
+
+EXPECTED_TOPICS = {
+    "grocery.deals.raw.v1",
+    "grocery.deals.normalize.retry.1m.v1",
+    "grocery.deals.normalize.retry.10m.v1",
+    "grocery.deals.normalized.v1",
+    "grocery.deals.dlq.v1",
 }
 
 
@@ -62,6 +73,20 @@ def test_kafka_broker_accepts_connections() -> None:
     assert "id: 1" in output
 
 
+def test_application_topics_are_provisioned() -> None:
+    output = compose(
+        "exec",
+        "-T",
+        "kafka",
+        "/opt/kafka/bin/kafka-topics.sh",
+        "--bootstrap-server",
+        "127.0.0.1:19092",
+        "--list",
+    )
+
+    assert EXPECTED_TOPICS <= set(output.splitlines())
+
+
 def test_postgres_accepts_connections_and_has_pgvector() -> None:
     output = compose(
         "exec",
@@ -75,6 +100,20 @@ def test_postgres_accepts_connections_and_has_pgvector() -> None:
     )
 
     assert output
+
+
+def test_ranking_migrations_are_applied() -> None:
+    output = compose(
+        "exec",
+        "-T",
+        "postgres",
+        "sh",
+        "-ec",
+        'psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" '
+        "--tuples-only --command \"SELECT to_regclass('ranking.deal_projection');\"",
+    )
+
+    assert "ranking.deal_projection" in output
 
 
 def test_ranking_api_connects_to_postgres() -> None:

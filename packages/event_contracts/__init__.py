@@ -7,6 +7,9 @@ from .models import (
     DeadLetterPayload,
     EventEnvelope,
     NormalizationAudit,
+    NormalizationRetryEvent,
+    NormalizationRetryEventV1,
+    NormalizationRetryPayload,
     NormalizedDealEvent,
     NormalizedDealEventV1,
     NormalizedDealPayload,
@@ -15,6 +18,7 @@ from .models import (
     RawDealEventV1,
     RawDealPayload,
     RawProduct,
+    RetryFailure,
     StoreLocation,
 )
 
@@ -25,6 +29,9 @@ __all__ = [
     "DeadLetterPayload",
     "EventEnvelope",
     "NormalizationAudit",
+    "NormalizationRetryEvent",
+    "NormalizationRetryEventV1",
+    "NormalizationRetryPayload",
     "NormalizedDealEvent",
     "NormalizedDealEventV1",
     "NormalizedDealPayload",
@@ -33,5 +40,6 @@ __all__ = [
     "RawDealEventV1",
     "RawDealPayload",
     "RawProduct",
+    "RetryFailure",
     "StoreLocation",
 ]

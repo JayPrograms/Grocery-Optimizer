@@ -10,7 +10,12 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from event_contracts import DeadLetterEvent, NormalizedDealEvent, RawDealEvent
+from event_contracts import (
+    DeadLetterEvent,
+    NormalizationRetryEvent,
+    NormalizedDealEvent,
+    RawDealEvent,
+)
 from event_contracts.models import MAX_RAW_DLQ_BYTES
 
 
@@ -29,6 +34,7 @@ def validate_json(model: type[Any], data: dict[str, Any], **kwargs: Any) -> Any:
     ("model", "fixture_name", "context"),
     [
         (RawDealEvent, "raw_deal_event_v1.json", None),
+        (NormalizationRetryEvent, "normalization_retry_event_v1.json", None),
         (
             NormalizedDealEvent,
             "normalized_deal_event_v1.json",
@@ -90,6 +96,7 @@ def test_decimal_values_serialize_as_json_strings() -> None:
     ("fixture_name", "model"),
     [
         ("raw_deal_event_v1.json", RawDealEvent),
+        ("normalization_retry_event_v1.json", NormalizationRetryEvent),
         ("normalized_deal_event_v1.json", NormalizedDealEvent),
         ("dead_letter_event_v1.json", DeadLetterEvent),
     ],

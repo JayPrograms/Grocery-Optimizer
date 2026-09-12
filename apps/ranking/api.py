@@ -133,15 +133,23 @@ def register_optimization_route(app: FastAPI) -> None:
                     straight_line_distance, settings.road_factor
                 )
 
-        grocery_items = [
-            GroceryItem(
-                client_item_id=item.client_item_id,
-                name=item.name,
-                quantity=item.quantity,
-                unit=item.unit,
+        match_product = getattr(deal_repository, "match_product", None)
+        grocery_items: list[GroceryItem] = []
+        for item in optimization.items:
+            canonical_product_id = (
+                await match_product(item.name) if match_product is not None else None
             )
-            for item in optimization.items
-        ]
+            grocery_items.append(
+                GroceryItem(
+                    client_item_id=item.client_item_id,
+                    name=item.name,
+                    quantity=item.quantity,
+                    unit=item.unit,
+                    canonical_product_id=(
+                        str(canonical_product_id) if canonical_product_id is not None else None
+                    ),
+                )
+            )
         fuel_price_per_litre = (
             optimization.fuel_price_per_litre
             if optimization.fuel_price_per_litre is not None

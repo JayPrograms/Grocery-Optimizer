@@ -11,9 +11,18 @@ from apps.normalization import main as normalization
 from apps.ranking import main as ranking
 
 
-@pytest.mark.parametrize("module", [ingestion, normalization])
-def test_service_exposes_only_health_routes(module: ModuleType) -> None:
-    paths = {route.path for route in module.app.routes}
+def test_ingestion_service_exposes_batch_and_health_routes() -> None:
+    paths = {route.path for route in ingestion.app.routes}
+
+    assert paths == {
+        "/health/live",
+        "/health/ready",
+        "/internal/v1/deal-batches",
+    }
+
+
+def test_normalization_service_exposes_health_routes() -> None:
+    paths = {route.path for route in normalization.app.routes}
 
     assert paths == {"/health/live", "/health/ready"}
 
