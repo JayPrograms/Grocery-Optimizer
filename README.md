@@ -1,10 +1,64 @@
 # Grocery Savings Optimizer
 
+[![CI](https://github.com/JayPrograms/Grocery-Optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/JayPrograms/Grocery-Optimizer/actions/workflows/ci.yml)
+
+An event-driven grocery recommendation MVP built with **Python, FastAPI, Kafka,
+PostgreSQL/pgvector, Pydantic, Next.js, and Docker Compose**. It answers one question:
+do a nearby store's advertised savings justify the fuel cost of a dedicated trip?
+
 This MVP accepts fixture flyer deals, normalizes product descriptions through a
 deterministic embedding path with a structured offline LLM fallback, persists the
 normalized state, projects it through Kafka, and recommends the best single nearby
 store after estimated round-trip fuel cost. The browser client displays the matched
 items and the grocery-savings, distance, fuel-cost, and net-savings breakdown.
+
+![Bread and milk recommendation using sample data](docs/images/grocery-demo.png)
+
+The screenshot shows the actual web client and ranking API using an in-memory sample
+projection: one bread package plus two litres of milk saves CAD 4.50, with CAD 0.73
+estimated fuel cost over a 5.3 km round trip, leaving CAD 3.77 net savings. It is a
+calculation demonstration, not evidence of a live retailer integration.
+
+## Engineering highlights
+
+- Strict, versioned Pydantic contracts validate raw, normalized, retry, and DLQ events.
+- Kafka transactions publish complete batches and coordinate retry/DLQ handoffs.
+- Consumer inboxes and version-guarded upserts handle duplicates and stale deliveries.
+- A PostgreSQL transactional outbox connects committed normalization to ranking.
+- pgvector retrieval, aliases, and a structured offline fallback exercise normalization.
+- Decimal arithmetic, compatible unit conversions, and stable tie-breaking explain the
+  best single-store recommendation, including unmatched items and negative net savings.
+- The Next.js client uses a server-side API proxy; calculation logic stays in Python.
+
+```mermaid
+flowchart LR
+    Flyer[Flyer batch] --> Ingestion[Ingestion API]
+    Ingestion --> Raw[Raw Kafka topic]
+    Raw --> Normalization[Normalization worker]
+    Normalization --> DB[(Normalization schema and outbox)]
+    DB --> Relay[Outbox relay]
+    Relay --> Normalized[Normalized Kafka topic]
+    Normalized --> Projector[Ranking projector]
+    Projector --> Projection[(Ranking schema)]
+    Projection --> API[Ranking API]
+    Web[Next.js client] <--> API
+    Normalization --> Retry[Delayed retries and DLQ]
+    Projector --> DLQ[DLQ]
+```
+
+## Current status and boundaries
+
+The core local MVP is implemented. AI providers are deterministic offline fixtures;
+real-provider accuracy has not been evaluated. Source data is submitted by an operator
+or adapter; automated scraping, shopper accounts, purchasing, and multi-store route
+optimization are outside the MVP.
+
+The current implementation also has documented operational gaps: separate database
+roles, complete structured metrics, health endpoints for the outbox/projector, and
+coordination between multiple outbox replicas. This is a local development project,
+not a production deployment. See [current verification](docs/STATUS.md), the
+[architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md), and
+[historical release report](RELEASE_REPORT.md).
 
 ## Run the complete MVP locally
 
@@ -125,3 +179,10 @@ Remove-Item Env:TEST_KAFKA_BOOTSTRAP_SERVERS
 The live suite creates uniquely named data and also exercises duplicate raw events,
 both retry topics, malformed and unresolvable events, retry exhaustion, the DLQ,
 expired-deal filtering, the frontend proxy, and exact recommendation totals.
+
+GitHub Actions runs the default Python tests, frontend tests/build, dependency audit,
+and a separate Docker Compose integration/acceptance job. Check the linked CI run for
+the result associated with the current commit; a configured workflow is not proof
+that every check has passed.
+
+For a concise, evidence-based project description, see [resume notes](docs/RESUME.md).

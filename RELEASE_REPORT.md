@@ -1,5 +1,8 @@
 # MVP Release Report
 
+Historical verification from September 11, 2026. For current checks and remaining
+implementation gaps, see [docs/STATUS.md](docs/STATUS.md) and the latest GitHub CI run.
+
 Date: 2026-09-11  
 Overall release status: **PASS**
 
