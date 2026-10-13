@@ -16,8 +16,8 @@ database persistence.
 
 ## Local verification
 
-- Python before the startup regression addition: **133 passed, 15 skipped**. The skipped tests require Kafka/PostgreSQL or the
-  full Compose stack.
+- Python with the startup regression included: **133 passed, 16 skipped**. The skipped
+  tests require Kafka/PostgreSQL or the full Compose stack.
 - The full local stack could not be rerun because Docker Desktop fails during startup
   with a stale `dockerInference` runtime socket error. Project volumes were not reset.
 - The September 11 report records **148 tests passing with live gates enabled** and
@@ -58,3 +58,23 @@ These gaps are documented rather than represented as completed features. See
 
 Live infrastructure verification for the publishing commit is provided by the linked
 GitHub Actions run. Its outcome may differ from the local non-container checks above.
+
+## Verified GitHub release
+
+[CI run 38338660367](https://github.com/JayPrograms/Grocery-Optimizer/actions/runs/38338660367)
+passed all three jobs for implementation commit
+`df73aa1491f0dbadb45580df713b9938f1780e97`:
+
+- **Python tests:** passed.
+- **Frontend tests and build:** 7 tests passed, production build passed, and dependency
+  audit passed.
+- **Compose integration and acceptance:** the full stack started successfully and
+  **149 tests passed with no skips** in a fresh GitHub Linux runner.
+
+The live acceptance gate exercises the fixture pipeline, vector and mocked-LLM routes,
+duplicate delivery, retry stages, terminal failures/DLQ, projections, the frontend
+proxy, and recommendation totals. The new concurrent catalog startup regression also
+passed against real PostgreSQL. This validates the local MVP architecture; it does
+not demonstrate production traffic or real-provider matching quality.
+
+The subsequent documentation-only commit records this result without repeating CI.
