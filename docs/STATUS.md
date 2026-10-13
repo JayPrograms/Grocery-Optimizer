@@ -16,7 +16,7 @@ database persistence.
 
 ## Local verification
 
-- Python: **133 passed, 15 skipped**. The skipped tests require Kafka/PostgreSQL or the
+- Python before the startup regression addition: **133 passed, 15 skipped**. The skipped tests require Kafka/PostgreSQL or the
   full Compose stack.
 - The full local stack could not be rerun because Docker Desktop fails during startup
   with a stale `dockerInference` runtime socket error. Project volumes were not reset.
@@ -52,6 +52,9 @@ These gaps are documented rather than represented as completed features. See
 - `docker compose config --quiet` and `git diff --check`: passed.
 - Added a GitHub Actions workflow for Python, frontend, and live Compose checks.
 - Preserved the GitHub repository's initial commit when joining it to local history.
+- The first Compose CI run exposed concurrent catalog seeding failing on the product
+  primary key. Seed inserts now handle either unique identity conflict, with a live
+  PostgreSQL regression covering six concurrent seeders and a later repeat startup.
 
 Live infrastructure verification for the publishing commit is provided by the linked
 GitHub Actions run. Its outcome may differ from the local non-container checks above.

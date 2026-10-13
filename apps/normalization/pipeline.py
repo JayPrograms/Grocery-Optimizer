@@ -109,6 +109,7 @@ class NormalizationRepository:
             for name, category in SEED_PRODUCTS:
                 fingerprint = normalize_text(name)
                 product_id = uuid5(NAMESPACE_URL, f"grocery-product:{fingerprint}")
+                # Concurrent consumers can conflict on either unique product identity.
                 connection.execute(
                     """
                     INSERT INTO normalization.products (
@@ -116,7 +117,7 @@ class NormalizationRepository:
                         package_quantity, package_unit, category, search_text, embedding,
                         embedding_model, embedding_version, catalog_version
                     ) VALUES (%s, %s, %s, NULL, NULL, NULL, %s, %s, %s::vector, %s, %s, 1)
-                    ON CONFLICT (fingerprint) DO NOTHING
+                    ON CONFLICT DO NOTHING
                     """,
                     (
                         product_id,
